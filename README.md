@@ -1,5 +1,7 @@
 # Webtel AI Sales Assistant
 
+> **New: [LeadForge](leadforge/README.md)** is a free lead-intelligence and sales-assist app for solo sellers, in `leadforge/`. It finds leads, enriches them, maps people, analyses pain points, writes pitches, and runs the call desk, inbox and pipeline. Run it with `cd leadforge && npm run setup && npm run dev`.
+
 A personal CRM and AI sales assistant for a Senior Relationship Manager at a software/cloud sales company. It tracks a lead from its source all the way to post-sale revenue:
 
 **Lead Source → Lead → Qualification → Demo → Quotation → Negotiation → Won/Lost → Customer → Sales**

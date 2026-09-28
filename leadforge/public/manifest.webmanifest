@@ -1,0 +1,14 @@
+{
+  "name": "LeadForge",
+  "short_name": "LeadForge",
+  "description": "Free lead intelligence & sales assistant",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0c0c10",
+  "theme_color": "#5b5bf0",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }],
+  "shortcuts": [
+    { "name": "Call desk", "url": "/calls" },
+    { "name": "Discover", "url": "/discover" }
+  ]
+}
