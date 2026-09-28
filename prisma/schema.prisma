@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  QUOTATION_SENT
+  NEGOTIATION
+  WON
+  LOST
+  FOLLOW_UP
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ActivityType {
+  CALL
+  WHATSAPP
+  EMAIL
+  MEETING
+  DEMO
+  FOLLOW_UP
+  SITE_VISIT
+  NOTE
+}
+
+enum ActivityStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+}
+
+enum FollowupStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum OpportunityStage {
+  PROSPECTING
+  QUALIFICATION
+  DEMO
+  PROPOSAL
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leads          Lead[]
+  aiInteractions AiInteraction[]
+  statusChanges  LeadStatusHistory[]
+
+  @@map("users")
+}
+
+model LeadSource {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leads Lead[]
+
+  @@map("lead_sources")
+}
+
+model Lead {
+  id                String     @id @default(cuid())
+  name              String
+  companyName       String?
+  phone             String?
+  email             String?
+  city              String?
+  state             String?
+  industry          String?
+  companySize       String?
+  leadSourceId      String
+  leadSourceDetails String?
+  campaignName      String?
+  referralName      String?
+  assignedUserId    String?
+  status            LeadStatus @default(NEW)
+  /// Furthest funnel stage the lead has ever reached (see src/lib/funnel.ts). Survives LOST.
+  highestStageRank  Int        @default(0)
+  priority          Priority   @default(MEDIUM)
+  estimatedValue    Decimal    @default(0) @db.Decimal(14, 2)
+  notes             String?
+  isDemo            Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  leadSource         LeadSource          @relation(fields: [leadSourceId], references: [id], onDelete: Restrict)
+  assignedUser       User?               @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  customer           Customer?
+  activities         Activity[]
+  meetings           Meeting[]
+  followups          Followup[]
+  opportunities      Opportunity[]
+  quotations         Quotation[]
+  sales              Sale[]
+  aiInteractions     AiInteraction[]
+  statusHistory      LeadStatusHistory[]
+  interestedProducts Product[]           @relation("LeadInterestedProducts")
+
+  @@index([leadSourceId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([assignedUserId])
+  @@index([city])
+  @@index([campaignName])
+  @@index([leadSourceId, status])
+  @@index([leadSourceId, createdAt])
+  @@index([assignedUserId, status])
+  @@map("leads")
+}
+
+model LeadStatusHistory {
+  id          String      @id @default(cuid())
+  leadId      String
+  fromStatus  LeadStatus?
+  toStatus    LeadStatus
+  changedById String?
+  changedAt   DateTime    @default(now())
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, changedAt])
+  @@map("lead_status_history")
+}
+
+model Customer {
+  id                   String   @id @default(cuid())
+  leadId               String?  @unique
+  customerName         String
+  companyName          String?
+  phone                String?
+  email                String?
+  address              String?
+  city                 String?
+  industry             String?
+  numberOfUsers        Int?
+  currentSoftware      String?
+  currentServer        String?
+  currentCloudProvider String?
+  painPoints           String?
+  requirements         String?
+  notes                String?
+  isDemo               Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lead           Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  activities     Activity[]
+  meetings       Meeting[]
+  followups      Followup[]
+  opportunities  Opportunity[]
+  quotations     Quotation[]
+  sales          Sale[]
+  aiInteractions AiInteraction[]
+
+  @@index([companyName])
+  @@index([phone])
+  @@index([email])
+  @@map("customers")
+}
+
+model Opportunity {
+  id                String           @id @default(cuid())
+  leadId            String?
+  customerId        String?
+  opportunityName   String
+  estimatedAmount   Decimal          @default(0) @db.Decimal(14, 2)
+  probability       Int              @default(10)
+  expectedCloseDate DateTime?
+  stage             OpportunityStage @default(PROSPECTING)
+  competitor        String?
+  objections        String?
+  nextAction        String?
+  notes             String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  products Product[] @relation("OpportunityProducts")
+
+  @@index([stage])
+  @@index([leadId])
+  @@index([customerId])
+  @@map("opportunities")
+}
+
+model Activity {
+  id               String         @id @default(cuid())
+  leadId           String?
+  customerId       String?
+  activityType     ActivityType
+  subject          String
+  description      String?
+  activityDate     DateTime       @default(now())
+  nextFollowupDate DateTime?
+  status           ActivityStatus @default(COMPLETED)
+  createdAt        DateTime       @default(now())
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, activityDate])
+  @@index([customerId, activityDate])
+  @@index([activityDate])
+  @@map("activities")
+}
+
+model Meeting {
+  id                   String    @id @default(cuid())
+  leadId               String?
+  customerId           String?
+  meetingDate          DateTime
+  meetingType          String
+  notes                String?
+  customerRequirements String?
+  objections           String?
+  productsDiscussed    String?
+  nextSteps            String?
+  followupDate         DateTime?
+  createdAt            DateTime  @default(now())
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([customerId])
+  @@index([meetingDate])
+  @@map("meetings")
+}
+
+model Followup {
+  id           String         @id @default(cuid())
+  leadId       String?
+  customerId   String?
+  followupDate DateTime
+  followupType ActivityType   @default(CALL)
+  reminderTime String?
+  message      String?
+  status       FollowupStatus @default(PENDING)
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([status, followupDate])
+  @@index([leadId])
+  @@index([customerId])
+  @@map("followups")
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  productName    String   @unique
+  category       String?
+  description    String?
+  targetCustomer String?
+  keyFeatures    String?
+  benefits       String?
+  pricing        Decimal? @db.Decimal(14, 2)
+  pricingType    String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quotationItems  QuotationItem[]
+  sales           Sale[]
+  opportunities   Opportunity[]   @relation("OpportunityProducts")
+  interestedLeads Lead[]          @relation("LeadInterestedProducts")
+
+  @@map("products")
+}
+
+model Quotation {
+  id                 String          @id @default(cuid())
+  leadId             String?
+  customerId         String?
+  quotationNumber    String          @unique
+  quotationDate      DateTime        @default(now())
+  subtotal           Decimal         @db.Decimal(14, 2)
+  discountAmount     Decimal         @default(0) @db.Decimal(14, 2)
+  gstPercentage      Decimal         @default(18) @db.Decimal(5, 2)
+  gstAmount          Decimal         @db.Decimal(14, 2)
+  totalAmount        Decimal         @db.Decimal(14, 2)
+  status             QuotationStatus @default(DRAFT)
+  validUntil         DateTime?
+  termsAndConditions String?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  lead     Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customer Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items    QuotationItem[]
+
+  @@index([status])
+  @@index([leadId])
+  @@index([customerId])
+  @@index([quotationDate])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String  @id @default(cuid())
+  quotationId String
+  productId   String?
+  description String
+  quantity    Decimal @db.Decimal(12, 2)
+  unitPrice   Decimal @db.Decimal(14, 2)
+  discount    Decimal @default(0) @db.Decimal(14, 2)
+  total       Decimal @db.Decimal(14, 2)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product   Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([quotationId])
+  @@map("quotation_items")
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  customerId    String?
+  leadId        String?
+  productId     String?
+  amount        Decimal       @db.Decimal(14, 2)
+  saleDate      DateTime      @default(now())
+  paymentStatus PaymentStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([saleDate])
+  @@index([productId])
+  @@index([leadId])
+  @@index([customerId])
+  @@map("sales")
+}
+
+model AiInteraction {
+  id              String   @id @default(cuid())
+  userId          String
+  leadId          String?
+  customerId      String?
+  interactionType String
+  prompt          String
+  response        String
+  model           String
+  createdAt       DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([leadId])
+  @@map("ai_interactions")
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  channel   String
+  body      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("message_templates")
+}
