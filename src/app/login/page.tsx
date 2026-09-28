@@ -19,7 +19,7 @@ export default function LoginPage() {
             <Input name="password" type="password" required autoComplete="current-password" />
           </Field>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button className="w-full" disabled={pending}>
+          <Button type="submit" className="w-full" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>
         </form>

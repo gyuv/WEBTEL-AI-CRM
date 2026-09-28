@@ -105,7 +105,7 @@ export async function runTool(actor: Actor, name: ToolName, rawArgs: unknown): P
         metric: a.metric,
         period: a.period,
         results: rows
-          .filter((r) => r.totalLeads > 0 || r.totalSales > 0)
+          .filter((r) => (r.totalLeads > 0 || r.totalSales > 0) && (a.metric === "leads" || (r[k] as number) > 0))
           .sort((x, y) => (y[k] as number) - (x[k] as number))
           .slice(0, a.limit)
           .map((r) => ({ source: r.name, value: r[k], leads: r.totalLeads, won: r.won, sales: r.totalSales, conversionRate: r.conversionRate })),

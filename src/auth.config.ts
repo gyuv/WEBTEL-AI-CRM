@@ -11,6 +11,7 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
       if (pathname.startsWith("/login")) return true;
+      if (!isLoggedIn && pathname.startsWith("/api/")) return Response.json({ error: "Not authenticated" }, { status: 401 });
       return isLoggedIn;
     },
     jwt({ token, user }) {
