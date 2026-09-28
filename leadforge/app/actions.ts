@@ -373,6 +373,11 @@ export async function saveApiKeyAction(provider: string, value: string | null) {
   if (!allowed.includes(provider)) return { error: "Unknown provider" };
   const { userId } = await ctx();
   await setApiKey(provider, value?.trim() || null, userId);
+  // Saving a Places / search key switches that source on (the key itself is the opt-in).
+  if (["places", "brave", "cse"].includes(provider)) {
+    const cur = await getSettings(userId);
+    await saveSettings({ providers: { ...cur.providers, [provider]: Boolean(value) } }, userId);
+  }
   await audit("api_key_updated", "api_key", provider, { cleared: !value }, userId);
   return {};
 }
@@ -454,4 +459,40 @@ export async function restoreBackupAction(json: string) {
     }
   }
   return { restored: n };
+}
+
+/* ---------- Lead scraper ---------- */
+export async function sweepAction(p: { categories: string[]; areas: string[]; city: string; radiusKm: number; perQuery: number; requirePhone: boolean; addToCallQueue: boolean; autoEnrich: boolean }) {
+  const { db, userId } = await ctx();
+  const cats = p.categories.map((c) => c.trim()).filter(Boolean).slice(0, 50);
+  if (!cats.length) return { error: "Pick at least one category" };
+  const areas = p.areas.map((a) => a.trim()).filter(Boolean).slice(0, 100);
+  const [search] = await db.insert(schema.searches).values({ userId, rawInput: `Sweep: ${cats.join(", ")} × ${areas.join(", ") || p.city}`, inputType: "sweep", filters: p as unknown as Record<string, unknown> }).returning();
+  // One job per category keeps each job short (serverless-friendly) and resumable.
+  const jobIds: string[] = [];
+  for (const c of cats) jobIds.push((await enqueue(userId, "sweep", { ...p, categories: [c], areas, searchId: search.id, perQuery: Math.min(Math.max(p.perQuery, 1), 200), radiusKm: Math.min(Math.max(p.radiusKm, 1), 30) })).id);
+  kick();
+  return { jobIds, searchId: search.id };
+}
+
+export async function scrapeSiteAction(p: { urls: string[]; maxPages: number; requirePhone: boolean; addToCallQueue: boolean; autoEnrich: boolean; category?: string; city?: string }) {
+  const { db, userId } = await ctx();
+  const urls = p.urls.map((u) => u.trim()).filter((u) => /^https?:\/\//.test(u)).slice(0, 50);
+  if (!urls.length) return { error: "Add at least one http(s) URL" };
+  const [search] = await db.insert(schema.searches).values({ userId, rawInput: `Scrape: ${urls.join("\n")}`, inputType: "scrape", filters: p as unknown as Record<string, unknown> }).returning();
+  const jobIds: string[] = [];
+  for (const u of urls) jobIds.push((await enqueue(userId, "scrape_site", { ...p, urls: [u], maxPages: Math.min(Math.max(p.maxPages, 1), 50), searchId: search.id })).id);
+  kick();
+  return { jobIds, searchId: search.id };
+}
+
+export async function bulkPasteAction(p: { text: string; category?: string; city?: string; addToCallQueue: boolean; autoEnrich: boolean }) {
+  const { db, userId } = await ctx();
+  const { parseBulkText, saveScraped } = await import("@/lib/server/scraper");
+  const leads = parseBulkText(p.text, p.category || null, p.city || null);
+  if (!leads.length) return { error: "No phone numbers found in the text" };
+  const [search] = await db.insert(schema.searches).values({ userId, rawInput: p.text.slice(0, 2000), inputType: "paste", filters: {} }).returning();
+  const r = await saveScraped(userId, leads, { addToCallQueue: p.addToCallQueue, autoEnrich: p.autoEnrich, searchId: search.id });
+  if (p.autoEnrich) kick();
+  return { ...r, searchId: search.id };
 }

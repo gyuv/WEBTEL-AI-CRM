@@ -111,3 +111,23 @@ describe("tech detection", () => {
     expect(digitalMaturity([], null, false)).toBe(10);
   });
 });
+
+import { extractListings, findNextPage, parseBulkText } from "@/lib/server/scraper-parse";
+describe("scraper parsing", () => {
+  const html = `<html><body><ul>
+    <li><h3>Sri Balaji Traders</h3><p>No. 12, Anna Salai, Chennai 600002</p><a href="tel:+919840012345">Call</a> <a href="https://balajitraders.in">Website</a> info@balajitraders.in</li>
+    <li><h3>Kaveri Steels</h3><p>Ambattur 600053</p>Phone: 044-2625 5555</li>
+    <li><h3>No Phone Co</h3><p>just text</p></li></ul>
+    <a rel="next" href="/members?page=2">Next</a></body></html>`;
+  it("extracts listings with phones", () => {
+    const l = extractListings(html, "https://assoc.org/members");
+    expect(l.map((x) => x.name)).toEqual(["Sri Balaji Traders", "Kaveri Steels"]);
+    expect(l[0]).toMatchObject({ website: "https://balajitraders.in", pincode: "600002" });
+    expect(l[0].emails).toContain("info@balajitraders.in");
+  });
+  it("follows next links on the same host only", () => expect(findNextPage(html, "https://assoc.org/members")).toBe("https://assoc.org/members?page=2"));
+  it("parses messy pasted text", () => {
+    const r = parseBulkText("Kaveri Hardware - 98400 55555\nLakshmi Printers, Egmore 044 2819 1234\nno number here");
+    expect(r.map((x) => x.name)).toEqual(["Kaveri Hardware", "Lakshmi Printers, Egmore"]);
+  });
+});

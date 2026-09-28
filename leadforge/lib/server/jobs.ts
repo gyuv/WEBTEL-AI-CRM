@@ -11,7 +11,7 @@ import { discoverPeopleViaSearch } from "./people";
 import { analyzeLead } from "../ai/engine";
 import { domainFromUrl } from "../utils";
 
-export type JobType = "discover" | "enrich" | "people" | "analyze" | "inbox_sync";
+export type JobType = "discover" | "enrich" | "people" | "analyze" | "inbox_sync" | "sweep" | "scrape_site";
 
 export async function enqueue(userId: string, type: JobType, payload: Record<string, unknown>, idempotencyKey?: string) {
   const db = await getDb();
@@ -168,6 +168,14 @@ export const HANDLERS: Record<JobType, Handler> = {
   async analyze(userId, payload) {
     const r = await analyzeLead(userId, String(payload.leadId), { force: Boolean(payload.force) });
     return { model: r.model, pains: r.analysis.pains.length };
+  },
+  async sweep(userId, payload, progress) {
+    const { sweep } = await import("./scraper");
+    return sweep(userId, payload as never, progress) as unknown as Record<string, unknown>;
+  },
+  async scrape_site(userId, payload, progress) {
+    const { scrapeSite } = await import("./scraper");
+    return scrapeSite(userId, payload as never, progress) as unknown as Record<string, unknown>;
   },
   async inbox_sync(userId) {
     const { syncGmail } = await import("./inbox");

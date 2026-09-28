@@ -106,25 +106,38 @@ export async function discoverPlaces({ intent, limit, userId }: DiscoveryOptions
   const key = await getApiKey("places", userId);
   if (!key || !s.providers.places) return [];
   if ((await usageToday("places", userId)) >= s.placesDailyBudget) throw new Error("Google Places daily budget reached (Settings → Providers)");
-  const body = { textQuery: `${intent.category} in ${[intent.area, intent.location].filter(Boolean).join(", ")}`, maxResultCount: Math.min(limit, 20), regionCode: "IN" };
-  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json", "X-Goog-Api-Key": key,
-      // Strict field mask keeps the request in the cheapest SKU that still has phone/website.
-      "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.location",
-    },
-    body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
-  });
-  await trackUsage("places", 1, 0, userId);
-  if (!r.ok) throw new Error(`Places ${r.status}`);
-  const j = (await r.json()) as { places?: { displayName?: { text: string }; formattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; googleMapsUri?: string; location?: { latitude: number; longitude: number } }[] };
-  return (j.places ?? []).map((p) => ({
-    name: p.displayName?.text ?? "Unknown", address: p.formattedAddress, city: intent.location, area: intent.area,
-    phones: p.nationalPhoneNumber ? [p.nationalPhoneNumber] : [], website: p.websiteUri, rating: p.rating, reviewsCount: p.userRatingCount,
-    mapsUrl: p.googleMapsUri, lat: p.location?.latitude, lng: p.location?.longitude, category: intent.category,
-    source: "places", sourceUrl: p.googleMapsUri,
-  }));
+  const textQuery = `${intent.category} in ${[intent.area, intent.location].filter(Boolean).join(", ")}`;
+  type P = { displayName?: { text: string }; formattedAddress?: string; nationalPhoneNumber?: string; internationalPhoneNumber?: string; websiteUri?: string; rating?: number; userRatingCount?: number; googleMapsUri?: string; location?: { latitude: number; longitude: number }; primaryTypeDisplayName?: { text: string } };
+  const out: RawLead[] = [];
+  let pageToken: string | undefined;
+  // Up to 3 pages × 20 = 60 results per query (Google's max). Each page counts toward the daily budget.
+  for (let page = 0; page < 3 && out.length < limit; page++) {
+    if ((await usageToday("places", userId)) >= s.placesDailyBudget) break;
+    const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json", "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.location,places.primaryTypeDisplayName,nextPageToken",
+      },
+      body: JSON.stringify({ textQuery, pageSize: 20, regionCode: "IN", languageCode: "en", ...(pageToken ? { pageToken } : {}) }),
+      signal: AbortSignal.timeout(15000),
+    });
+    await trackUsage("places", 1, 0, userId);
+    if (!r.ok) throw new Error(`Google Places HTTP ${r.status}: ${(await r.text()).slice(0, 150)}`);
+    const j = (await r.json()) as { places?: P[]; nextPageToken?: string };
+    for (const p of j.places ?? []) {
+      out.push({
+        name: p.displayName?.text ?? "Unknown", address: p.formattedAddress, city: intent.location, area: intent.area,
+        pincode: p.formattedAddress?.match(/\b\d{6}\b/)?.[0] ?? null,
+        phones: [p.internationalPhoneNumber ?? p.nationalPhoneNumber].filter(Boolean) as string[], website: p.websiteUri, rating: p.rating, reviewsCount: p.userRatingCount,
+        mapsUrl: p.googleMapsUri, lat: p.location?.latitude, lng: p.location?.longitude, category: p.primaryTypeDisplayName?.text ?? intent.category,
+        source: "places", sourceUrl: p.googleMapsUri,
+      });
+    }
+    pageToken = j.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out.slice(0, limit);
 }
 
 /* ---------------- Mock discovery ---------------- */

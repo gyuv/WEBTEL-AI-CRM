@@ -101,6 +101,26 @@ Live counters are under **Settings → Usage**, with warnings at 80%. Calls stop
    - **Reports**: breakdowns by industry, template and call outcome, and a printable weekly report.
    - **Data**: backup and restore, and delete-all.
 
+## Lead scraper tab
+
+- **Quick search**:
+  - Type a business type and a location, then press Search.
+  - You get a table of company name, phone, email, website and address, which fills itself in.
+  - Sort by new entries, popular/most visited (review count), top rated, phone first or has email.
+  - Filter to companies with a phone, email or website.
+  - Export to Excel/CSV, or go straight to the Call desk.
+- **Area sweep**: many categories × many areas in one click.
+- **Website / directory scraper**: paste any list page. It extracts every business on it and follows "Next" pages, respecting robots.txt.
+- **Google Maps capture**: search Maps yourself, then one extension click saves every listing on screen.
+- **Bulk paste**: any text containing phone numbers becomes leads.
+
+Sources, in the order they are used:
+1. **Google Places API**: Google's official data. Needs your own key with billing enabled. It is capped at 30 requests/day by default (about 900/month) to stay inside Google's free monthly allowance; check your usage in Google Cloud.
+2. **OpenStreetMap**: always free, no key.
+3. **Website finder**: when a lead has no website, free web search (Google Programmable Search, SearXNG or Brave) finds it, then the site's contact pages are read for emails and phones.
+
+Google Maps pages are never scraped automatically.
+
 ## Architecture
 
 ```

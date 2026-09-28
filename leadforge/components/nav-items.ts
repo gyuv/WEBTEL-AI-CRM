@@ -1,8 +1,9 @@
-import { LayoutDashboard, Radar, Building2, Users, Sparkles, Phone, Mail, Inbox, KanbanSquare, Package, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Radar, Pickaxe, Building2, Users, Sparkles, Phone, Mail, Inbox, KanbanSquare, Package, BarChart3, Settings } from "lucide-react";
 
 export const NAV = [
   { href: "/dashboard", label: "Today", short: "Today", key: "t", icon: LayoutDashboard, mobile: true },
   { href: "/discover", label: "Discover", short: "Find", key: "d", icon: Radar, mobile: true },
+  { href: "/scraper", label: "Lead scraper", key: "x", icon: Pickaxe },
   { href: "/leads", label: "Leads", key: "l", icon: Building2, mobile: true },
   { href: "/people", label: "People", key: "p", icon: Users },
   { href: "/calls", label: "Call desk", short: "Calls", key: "c", icon: Phone, mobile: true },

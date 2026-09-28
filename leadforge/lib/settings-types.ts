@@ -35,7 +35,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ollamaUrl: "http://localhost:11434",
   searxngUrl: "",
   cseCx: "",
-  placesDailyBudget: 50,
+  placesDailyBudget: 30,
   directories: [],
   targets: { callsPerDay: 40, emailsPerDay: 30 },
   coldAfterDays: 14,
@@ -54,7 +54,7 @@ export const FREE_LIMITS: Record<string, { daily: number; label: string; note: s
   brave: { daily: 66, label: "Brave Search", note: "~2,000/month" },
   cse: { daily: 100, label: "Google Programmable Search", note: "100/day free" },
   searxng: { daily: Infinity, label: "SearXNG (self-hosted)", note: "Unlimited" },
-  places: { daily: 50, label: "Google Places", note: "Your budget guard (billing required)" },
+  places: { daily: 30, label: "Google Places", note: "30/day ≈ 900/month — stays inside Google's free monthly allowance" },
   website: { daily: Infinity, label: "Website crawl", note: "Polite, robots.txt respected" },
   gmail: { daily: 10000, label: "Gmail API", note: "Generous free quota" },
 };

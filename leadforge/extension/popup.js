@@ -1,6 +1,48 @@
 // Runs ONLY when the user clicks the extension. Extracts visible text from the active tab once.
 let captured = [];
 
+function extractMaps() {
+  // Google Maps: read the result cards / place panel currently rendered on screen. No scrolling, no clicking.
+  const t = (el) => (el ? el.textContent.trim().replace(/\s+/g, " ") : null);
+  const leads = [];
+  const phoneRe = /(?:\+91[\s-]?)?(?:0\d{2,4}[\s-]?\d{6,8}|[6-9]\d{4}[\s-]?\d{5})/;
+  const panelName = t(document.querySelector("h1.DUwDvf, h1"));
+  const phoneBtn = document.querySelector("button[data-item-id^='phone'], [data-tooltip='Copy phone number']");
+  if (panelName && phoneBtn) {
+    leads.push({
+      name: panelName,
+      phone: (phoneBtn.getAttribute("data-item-id") || "").replace(/^phone:tel:/, "") || t(phoneBtn),
+      address: t(document.querySelector("button[data-item-id='address']")),
+      website: (document.querySelector("a[data-item-id='authority']") || {}).href || null,
+      category: t(document.querySelector("button.DkEaL")),
+      rating: parseFloat(t(document.querySelector("div.F7nice span[aria-hidden]")) || "") || null,
+      mapsUrl: location.href,
+    });
+  }
+  document.querySelectorAll("div[role='feed'] > div").forEach((card) => {
+    const a = card.querySelector("a.hfpxzc, a[href*='/maps/place/']");
+    if (!a) return;
+    const name = a.getAttribute("aria-label") || t(card.querySelector(".qBF1Pd"));
+    if (!name) return;
+    const lines = [...card.querySelectorAll(".W4Efsd")].map((x) => t(x)).filter(Boolean);
+    const all = lines.join(" · ");
+    const phone = (all.match(phoneRe) || [null])[0];
+    const parts = (lines[1] || lines[0] || "").split("·").map((x) => x.trim()).filter(Boolean);
+    const web = card.querySelector("a[data-value='Website'], a[aria-label*='website' i]");
+    leads.push({
+      name, phone,
+      category: parts[0] || null,
+      address: parts.find((p, i) => i > 0 && !/open|close|⋅|\d{1,2}(am|pm)/i.test(p) && !phoneRe.test(p)) || null,
+      rating: parseFloat(t(card.querySelector(".MW4etd")) || "") || null,
+      reviews: parseInt((t(card.querySelector(".UY7F9")) || "").replace(/[^\d]/g, ""), 10) || null,
+      website: web ? web.href : null,
+      mapsUrl: a.href,
+    });
+  });
+  const seen = new Set();
+  return { leads: leads.filter((l) => !seen.has(l.name) && seen.add(l.name)), pageUrl: location.href };
+}
+
 function extractVisible() {
   const txt = (el) => (el ? el.innerText.trim().replace(/\s+/g, " ") : null);
   const q = (sel) => document.querySelector(sel);
@@ -39,8 +81,18 @@ function extractVisible() {
   return { people: people.slice(0, 50), pageUrl: url };
 }
 
+let mapsLeads = null;
 document.getElementById("read").onclick = async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (/google\.[a-z.]+\/maps/.test(tab.url || "")) {
+    const [r] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractMaps });
+    mapsLeads = r.result;
+    const box = document.getElementById("preview");
+    box.innerHTML = mapsLeads.leads.length ? `<b>${mapsLeads.leads.length} businesses</b> (${mapsLeads.leads.filter((l) => l.phone).length} with phone)` + mapsLeads.leads.slice(0, 30).map((l) => `<div class="p"><b>${esc(l.name)}</b><br><span class="muted">${esc(l.phone || "no phone in list — open the place to get it")} · ${esc(l.category || "")}</span></div>`).join("") : "No results visible. Search on Maps first.";
+    document.getElementById("send").disabled = !mapsLeads.leads.length;
+    return;
+  }
+  mapsLeads = null;
   const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractVisible });
   captured = res.result.people;
   const box = document.getElementById("preview");
@@ -56,6 +108,14 @@ document.getElementById("send").onclick = async () => {
   const granted = await chrome.permissions.request({ origins: [origin] });
   if (!granted) { st.textContent = "Permission needed to contact your LeadForge."; return; }
   st.textContent = "Sending…";
+  if (mapsLeads) {
+    try {
+      const r = await fetch(new URL("/api/extension/leads", baseUrl), { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ leads: mapsLeads.leads, pageUrl: mapsLeads.pageUrl, addToCallQueue: true }) });
+      const j = await r.json();
+      st.innerHTML = r.ok ? `<span class="ok">Saved ${j.created} new, ${j.merged} updated ✓</span>` : `<span class="err">${esc(j.error || r.status)}</span>`;
+    } catch (e) { st.innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+    return;
+  }
   try {
     const r = await fetch(new URL("/api/extension/capture", baseUrl), { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ people: captured }) });
     const j = await r.json();

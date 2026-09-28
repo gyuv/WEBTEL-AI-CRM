@@ -61,3 +61,21 @@ test("pipeline and settings render", async ({ page }) => {
   await page.getByRole("tab", { name: "Usage" }).click();
   await expect(page.getByText("Free-tier usage today")).toBeVisible();
 });
+
+test("lead scraper quick search returns a company table", async ({ page }) => {
+  await page.goto("/scraper");
+  await page.getByLabel("Business type").fill("dental clinic");
+  await page.getByLabel("Location").fill("Velachery, Chennai");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.waitForURL(/\/scraper\/results\//, { timeout: 60_000 });
+  await expect(page.getByRole("columnheader", { name: "Phone" })).toBeVisible();
+  await expect(page.locator("tbody tr").first()).toBeVisible();
+});
+
+test("lead scraper bulk paste extracts phone leads", async ({ page }) => {
+  await page.goto("/scraper");
+  await page.getByRole("tab", { name: "Bulk paste" }).click();
+  await page.getByPlaceholder(/Sri Murugan Traders/).fill("Kaveri Hardware - 98400 55555\nLakshmi Printers, Egmore 044 2819 1234");
+  await page.getByRole("button", { name: "Extract leads" }).click();
+  await expect(page.getByText(/2 new/).first()).toBeVisible();
+});

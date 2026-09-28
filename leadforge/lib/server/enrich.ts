@@ -127,6 +127,16 @@ export async function enrichLead(userId: string, leadId: string, progress: Progr
   await db.update(schema.leads).set({ enrichStatus: "running" }).where(eq(schema.leads.id, leadId));
   await progress(5, "Starting enrichment");
 
+  if (!lead.website && !settings.mockMode) {
+    const found = await findWebsite(userId, lead.name, lead.area ?? lead.city);
+    if (found) {
+      const { domainFromUrl: d } = await import("../utils");
+      await db.update(schema.leads).set({ website: found.url, domain: d(found.url) }).where(eq(schema.leads.id, leadId)).catch(() => undefined);
+      lead.website = found.url;
+      await addSource(userId, "lead", leadId, "website", found.url, { sourceUrl: found.source, provider: "web-search", method: "inferred", confidence: 70 });
+      await progress(8, `Found website ${found.url}`);
+    }
+  }
   let crawl: CrawlOutput | null = null;
   if (lead.website) {
     crawl = settings.mockMode || /\.example\.in/.test(lead.website)
@@ -190,4 +200,22 @@ export async function enrichLead(userId: string, leadId: string, progress: Progr
   await db.update(schema.leads).set({ enrichStatus: "done", lastEnrichedAt: new Date(), updatedAt: new Date() }).where(eq(schema.leads.id, leadId));
   await progress(80, "Enrichment complete");
   return { pages: crawl?.pages.length ?? 0, emails: crawl?.emails.length ?? 0, people: crawl?.people.length ?? 0 };
+}
+
+const NOT_OWN_SITE = /justdial|indiamart|sulekha|tradeindia|facebook|instagram|linkedin|youtube|wikipedia|practo|zomato|swiggy|google|quora|reddit|twitter|x\.com|yelp|magicbricks|99acres|naukri|indeed|glassdoor|asklaila|yellowpages|mouthshut|lybrate|zaubacorp|tofler|crunchbase|ambitionbox/i;
+
+/** Finds a company's own website from free web-search results (never scrapes Google itself). */
+async function findWebsite(userId: string, name: string, place: string | null) {
+  const { searchWeb, webSearchAvailable } = await import("../providers");
+  if (!(await webSearchAvailable(userId))) return null;
+  const res = await searchWeb(`"${name}" ${place ?? ""} contact`, userId, 8).catch(() => []);
+  const { nameSimilarity } = await import("../leadgen/dedupe");
+  const tokens = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((t) => t.length > 3);
+  for (const r of res) {
+    const d = domainFromUrl(r.url);
+    if (!d || NOT_OWN_SITE.test(d)) continue;
+    const looksRight = tokens.some((t) => d.includes(t)) || nameSimilarity(r.title.split(/[|\-–]/)[0], name) > 0.6;
+    if (looksRight) return { url: `https://${d}`, source: r.url };
+  }
+  return null;
 }

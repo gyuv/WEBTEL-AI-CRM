@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "LeadForge Capture",
   "version": "1.0.0",
-  "description": "Send the profile or people list you're viewing to your LeadForge. User-initiated only: reads what's visible, when you click.",
+  "description": "Send the Google Maps results, profile or people list you are viewing to your LeadForge. User-initiated only: reads what is visible, when you click.",
   "action": { "default_popup": "popup.html", "default_title": "Send to LeadForge" },
   "options_page": "options.html",
   "permissions": ["activeTab", "scripting", "storage"],
