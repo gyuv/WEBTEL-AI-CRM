@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +34,10 @@ async function ownerActor(): Promise<Actor> {
 }
 
 export async function getActor(): Promise<Actor | null> {
-  if (!loginRequired()) return ownerActor();
+  if (!loginRequired()) {
+    await connection(); // mark the request as dynamic so nothing touching the DB is pre-rendered
+    return ownerActor();
+  }
   const session = await auth();
   if (!session?.user?.id) return null;
   return { id: session.user.id, role: session.user.role, name: session.user.name };

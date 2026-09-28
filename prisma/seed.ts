@@ -53,6 +53,12 @@ async function main() {
   console.log("Seeding products…");
   for (const p of PRODUCTS) await prisma.product.upsert({ where: { productName: p.productName }, create: p, update: {} });
 
+  // Used by the Vercel build: load lead sources and products only (idempotent, never touches existing rows).
+  if (process.argv.includes("--reference-only")) {
+    console.log("Reference data ready.");
+    return;
+  }
+
   console.log("Seeding users…");
   const admin = await prisma.user.upsert({
     where: { email: "admin@webtel.demo" },

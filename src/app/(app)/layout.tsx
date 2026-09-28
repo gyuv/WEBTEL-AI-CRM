@@ -4,6 +4,9 @@ import { logoutAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui";
 import { loginRequired } from "@/lib/login-mode";
 
+// Every page reads live CRM data; never pre-render at build time.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await requirePageActor();
   return (

@@ -148,6 +148,16 @@ How the AI is kept safe:
 
 ## Deployment
 
+### Vercel
+
+Vercel runs the `vercel-build` script automatically: `prisma generate`, then `prisma migrate deploy` (creates or updates the tables), then loads the default lead sources and products (safe to repeat; existing rows are never changed), then `next build`.
+
+1. In Vercel → Project → Settings → Environment Variables, set `DATABASE_URL` (for all environments, including Build), plus `AUTH_SECRET`. `OPENAI_API_KEY` is optional.
+2. If your provider gives a *pooled* connection string (Supabase port 6543, PgBouncer), migrations need the *direct* connection. Use the direct string for `DATABASE_URL`, or run `npx prisma migrate deploy` once from your machine with the direct URL.
+3. Optional demo records: run `DATABASE_URL=<vercel db url> npm run db:seed` once from your machine.
+
+### Other hosts
+
 1. Provision PostgreSQL and set the environment variables above. Use a strong `AUTH_SECRET`.
 2. `npm ci && npm run db:deploy && npm run build && npm start`. You can also deploy to Vercel or a Node host with build command `npm run build` and run `prisma migrate deploy` during release.
 3. Run `npm run db:seed` once to load the lead sources and products. Afterwards, change the demo passwords or disable those users.
