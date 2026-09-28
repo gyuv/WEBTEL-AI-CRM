@@ -1,0 +1,14 @@
+# Free "cron" for LeadForge on Vercel Hobby (which only allows one daily cron).
+# Set repository secrets LEADFORGE_URL (e.g. https://your-app.vercel.app) and CRON_SECRET.
+name: LeadForge cron tick
+on:
+  schedule:
+    - cron: "*/15 2-16 * * *" # every 15 min, 07:30–22:00 IST
+  workflow_dispatch:
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    if: ${{ vars.LEADFORGE_CRON_ENABLED == 'true' }}
+    steps:
+      - name: Call /api/cron/tick
+        run: curl -fsS -m 70 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.LEADFORGE_URL }}/api/cron/tick"

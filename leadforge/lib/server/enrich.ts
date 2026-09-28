@@ -50,7 +50,7 @@ export function parsePage(html: string, url: string) {
   // Heuristic team cards: heading with a name followed by a short title line.
   $("h2,h3,h4,h5,strong,b").each((_, el) => {
     const name = $(el).text().trim();
-    if (!/^(dr\.?\s)?[A-Z][a-z]+(\s[A-Z][a-z.]*){1,3}$/.test(name)) return;
+    if (!/^([Dd]r\.?\s)?[A-Z][a-z]+(\s[A-Z][a-z.]*){1,3}$/.test(name)) return;
     const next = $(el).next().text().trim() || $(el).parent().text().replace(name, "").trim().slice(0, 80);
     if (PERSON_TITLE_RE.test(next) && next.length < 80) people.push({ name, title: next.split(/\n/)[0].trim(), url, snippet: `${name} — ${next.slice(0, 80)}` });
   });
@@ -83,6 +83,12 @@ async function crawlSite(website: string, contact: string, progress: Progress): 
     if (url === new URL("/", base.origin).toString()) {
       out.tech = detectTech(r.html, r.headers);
       out.audit = auditHtml(r.html, r.url, r.ms);
+    }
+    else {
+      // Features found on any page count (e.g. booking form on /contact).
+      const a = auditHtml(r.html, r.url);
+      for (const k of ["hasBookingOrForm", "hasChat", "hasWhatsappWidget", "hasEcommerce", "hasBlog", "hasCareers"] as const) if (a[k]) out.audit[k] = true;
+      for (const t of detectTech(r.html)) if (!out.tech.includes(t)) out.tech.push(t);
     }
     const p = parsePage(r.html, r.url);
     out.emails.push(...p.emails); out.phones.push(...p.phones); out.people.push(...p.people); out.hiringSignals.push(...p.hiringSignals);

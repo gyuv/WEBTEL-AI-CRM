@@ -122,21 +122,23 @@ export function ruleAssets(ctx: LeadCtx, analysis: Analysis, product: ProductCtx
   const hi = fn ? `Hi ${fn}` : "Hi";
   const vanakkam = fn ? `வணக்கம் ${fn} சார்/மேடம்` : "வணக்கம் சார்/மேடம்";
   const co = ctx.lead.name;
-  const pain = analysis.pains[0];
-  const pain2 = analysis.pains[1];
+  const covered = product ? analysis.pains.filter((x) => productCoversPain(product.problemsSolved, x.key ?? "")) : [];
+  const ordered = [...covered, ...analysis.pains.filter((x) => !covered.includes(x))];
+  const pain = ordered[0];
+  const pain2 = ordered[1];
   const pname = product?.name ?? "our solution";
   const benefit = product?.benefits[0] ?? "save time and win more customers";
   const me1 = me.displayName || "I";
   const myCo = me.companyName || "our company";
   const painLine = pain ? pain.detail.replace(/\.$/, "") : "";
-  const hook = pain ? `I was looking at ${co} and noticed ${painLine.charAt(0).toLowerCase() + painLine.slice(1)}.` : `I work with ${ctx.lead.category ?? "businesses"} around ${ctx.lead.city ?? "Chennai"}.`;
+  const hook = pain ? `I was looking at ${co} and noticed: ${pain.title.toLowerCase()} (${painLine.charAt(0).toLowerCase() + painLine.slice(1)}).` : `I work with ${ctx.lead.category ?? "businesses"} around ${ctx.lead.city ?? "Chennai"}.`;
   const cs = product?.caseStudies ? ` For example: ${product.caseStudies.split(/\n/)[0].slice(0, 160)}` : "";
   const meeting = me.meetingLink ? ` You can pick a slot here: ${me.meetingLink}` : "";
   const sig = me.signature || `${me1}\n${myCo}${me.phone ? `\n${me.phone}` : ""}`;
 
   const en = {
-    short: `${hi}, this is ${me1} from ${myCo}. ${hook} We help ${ctx.lead.category ?? "businesses"} with ${pname} to ${benefit}. Would a quick 10-minute call this week make sense?`,
-    long: `${hi}, this is ${me1} from ${myCo} — do you have two minutes?\n\n[Reason] ${hook}${pain2 ? ` Also, ${pain2.detail.charAt(0).toLowerCase() + pain2.detail.slice(1)}` : ""}\n\n[Question] How are you handling this today?\n\n[Pitch] ${pname}${product?.shortDesc ? ` — ${product.shortDesc}` : ""}. It helps you ${benefit}.${cs}\n\n[Qualify] Who else is involved in decisions like this? Roughly what volume are you handling each month?\n\n[Close] Can I show you a 15-minute demo — is Thursday or Friday better?`,
+    short: `${hi}, this is ${me1} from ${myCo}. ${hook} We help businesses like yours with ${pname} — ${benefit}. Would a quick 10-minute call this week make sense?`,
+    long: `${hi}, this is ${me1} from ${myCo} — do you have two minutes?\n\n[Reason] ${hook}${pain2 ? ` Also, ${pain2.detail.charAt(0).toLowerCase() + pain2.detail.slice(1)}` : ""}\n\n[Question] How are you handling this today?\n\n[Pitch] ${pname}${product?.shortDesc ? ` — ${product.shortDesc}` : ""}. Result: ${benefit}.${cs}\n\n[Qualify] Who else is involved in decisions like this? Roughly what volume are you handling each month?\n\n[Close] Can I show you a 15-minute demo — is Thursday or Friday better?`,
   };
   const ta = {
     short: `${vanakkam}, நான் ${myCo}-லிருந்து ${me1} பேசுகிறேன். ${pain ? `${co} பற்றி பார்த்தேன் — ${pain.title} என்று கவனித்தேன்.` : ""} ${pname} மூலம் உங்களுக்கு நேரமும் செலவும் மிச்சமாகும். இந்த வாரம் 10 நிமிடம் பேசலாமா?`,
@@ -152,7 +154,7 @@ export function ruleAssets(ctx: LeadCtx, analysis: Analysis, product: ProductCtx
     `${fn || co}, 10 minutes this week?`,
   ];
   const emails = [
-    { variant: "A — problem-first", subject: subjects[0], altSubjects: [subjects[1], subjects[2]], body: `${hi},\n\n${hook} It usually means ${ctx.lead.category?.toLowerCase().includes("clinic") || ctx.lead.category?.toLowerCase().includes("dental") ? "patients" : "customers"} go elsewhere without you knowing.\n\nWe built ${pname} to ${benefit}.${cs}\n\nWorth a 10-minute call this week?${meeting}\n\nThanks,\n${sig}\n\n${OPT_OUT_LINE}` },
+    { variant: "A — problem-first", subject: subjects[0], altSubjects: [subjects[1], subjects[2]], body: `${hi},\n\n${hook} It usually means ${ctx.lead.category?.toLowerCase().includes("clinic") || ctx.lead.category?.toLowerCase().includes("dental") ? "patients" : "customers"} go elsewhere without you knowing.\n\nWe built ${pname} for exactly this — ${benefit}.${cs}\n\nWorth a 10-minute call this week?${meeting}\n\nThanks,\n${sig}\n\n${OPT_OUT_LINE}` },
     { variant: "B — question-first", subject: subjects[1], altSubjects: [subjects[0], subjects[2]], body: `${hi},\n\nQuick question: how does ${co} handle ${pain ? pain.title.toLowerCase() : "new enquiries and follow-ups"} today?\n\nI ask because we help ${ctx.lead.category ?? "businesses"} in ${ctx.lead.city ?? "Chennai"} with ${pname}${product?.usps[0] ? ` (${product.usps[0]})` : ""}.\n\nIf it's useful, I can share a 2-minute walkthrough.\n\nRegards,\n${sig}\n\n${OPT_OUT_LINE}` },
     { variant: "C — short & local", subject: subjects[2], altSubjects: [subjects[0], subjects[1]], body: `${hi},\n\nI'm ${me1} from ${myCo}, here in Chennai. ${pain ? `Noticed ${pain.title.toLowerCase()} on ${co}'s side — ` : ""}we fix this for local ${ctx.lead.category ?? "businesses"} with ${pname}.\n\nOpen to a quick chat?\n\n${sig}\n\n${OPT_OUT_LINE}` },
   ];

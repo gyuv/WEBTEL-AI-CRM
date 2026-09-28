@@ -34,7 +34,7 @@ async function init(): Promise<{ db: DB; mode: "postgres" | "pglite" }> {
   await runMigrations({ exec: (q) => client.exec(q) });
   const db = drizzleLite(client, { schema }) as unknown as DB;
   const { ensureSeed } = await import("../seed");
-  await ensureSeed(db as never);
+  if (process.env.SEED_DEMO !== "false") await ensureSeed(db as never);
   return { db, mode: "pglite" };
 }
 

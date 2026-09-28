@@ -398,3 +398,60 @@ export async function currentMockMode() {
   const { userId } = await ctx();
   return (await getSettings(userId)).mockMode;
 }
+
+export async function renderForLeadAction(input: { templateId: string; leadId: string; productId?: string | null; personId?: string | null }) {
+  const { db, userId } = await ctx();
+  const { renderTemplate } = await import("@/lib/outreach/render");
+  const { getProfile } = await import("@/lib/server/core");
+  const [t] = await db.select().from(schema.templates).where(and(eq(schema.templates.id, input.templateId), eq(schema.templates.userId, userId)));
+  const [lead] = await db.select().from(schema.leads).where(and(eq(schema.leads.id, input.leadId), eq(schema.leads.userId, userId)));
+  if (!t || !lead) return { error: "Not found" };
+  const people = await db.select().from(schema.leadPeople).where(eq(schema.leadPeople.leadId, lead.id));
+  const person = people.find((p) => p.id === input.personId) ?? [...people].sort((a, b) => b.dmScore - a.dmScore)[0];
+  const [ins] = await db.select().from(schema.leadInsights).where(and(eq(schema.leadInsights.leadId, lead.id), eq(schema.leadInsights.kind, "analysis")));
+  const analysis = ins?.payload as { pains?: { title: string }[]; matches?: { productId: string; productName: string }[] } | undefined;
+  const products = await db.select().from(schema.products).where(eq(schema.products.userId, userId));
+  const product = products.find((p) => p.id === input.productId) ?? products.find((p) => p.id === analysis?.matches?.[0]?.productId);
+  const emails = await db.select().from(schema.leadEmails).where(eq(schema.leadEmails.leadId, lead.id));
+  const me = await getProfile(userId);
+  const vars = {
+    first_name: person?.fullName.split(" ")[0] ?? "there", full_name: person?.fullName, title: person?.title, company: lead.name, category: lead.category, city: lead.city, area: lead.area,
+    pain_point: analysis?.pains?.[0]?.title.toLowerCase() ?? "", product: product?.name, product_benefit: product?.benefits[0], my_name: me.displayName, my_company: me.companyName, signature: me.signature ?? me.displayName, meeting_link: me.meetingLink,
+  };
+  return {
+    subject: renderTemplate(t.subject ?? "", vars), body: renderTemplate(t.body, vars),
+    to: emails.find((e) => e.kind === "found")?.email ?? person?.guessedEmail ?? emails[0]?.email ?? "",
+    toIsGuess: !emails.some((e) => e.kind === "found"), productId: product?.id ?? null, personId: person?.id ?? null,
+  };
+}
+
+export async function regenerateExtensionTokenAction() {
+  const { userId } = await ctx();
+  const token = (await import("node:crypto")).randomBytes(24).toString("base64url");
+  await setApiKey("extension_token", token, userId);
+  return { token };
+}
+
+export async function disconnectGmailAction() {
+  const { userId } = await ctx();
+  await setApiKey("gmail_refresh", null, userId);
+  await setApiKey("gmail_scopes", null, userId);
+  return {};
+}
+
+export async function restoreBackupAction(json: string) {
+  const { db, userId } = await ctx();
+  let data: Record<string, Record<string, unknown>[]>;
+  try { data = JSON.parse(json); } catch { return { error: "Invalid JSON" }; }
+  const map: [string, typeof schema.leads | typeof schema.products][] = [["products", schema.products], ["leads", schema.leads], ["lead_phones", schema.leadPhones as never], ["lead_emails", schema.leadEmails as never], ["lead_people", schema.leadPeople as never], ["lead_insights", schema.leadInsights as never], ["templates", schema.templates as never], ["call_logs", schema.callLogs as never], ["outreach_log", schema.outreachLog as never], ["messages", schema.messages as never], ["notes", schema.notes as never], ["tasks", schema.tasks as never], ["status_history", schema.statusHistory as never], ["suppression_list", schema.suppressionList as never], ["source_records", schema.sourceRecords as never]];
+  let n = 0;
+  const dateKeys = /At$|^sentAt$|^startedAt$|^receivedAt$|^dueAt$|^doneAt$|^collectedAt$/;
+  for (const [k, table] of map) {
+    for (const row of data[k] ?? []) {
+      const r = Object.fromEntries(Object.entries(row).map(([key, v]) => [key, typeof v === "string" && dateKeys.test(key) ? new Date(v) : v]));
+      r.userId = userId;
+      try { await db.insert(table).values(r as never).onConflictDoNothing(); n++; } catch { /* skip bad rows */ }
+    }
+  }
+  return { restored: n };
+}

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(__dirname),
   outputFileTracingIncludes: { "/**": ["./supabase/**/*"] },
   serverExternalPackages: ["@electric-sql/pglite", "postgres", "exceljs"],
   eslint: { ignoreDuringBuilds: true },

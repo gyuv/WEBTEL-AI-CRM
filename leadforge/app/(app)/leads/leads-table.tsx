@@ -42,7 +42,7 @@ export function LeadsTable({ data, lists, initialStatus }: { data: LeadRow[]; li
     { id: "score", accessorKey: "score", header: "Score", size: 64, cell: ({ getValue }) => <ScoreRing value={getValue<number>()} size={32} /> },
     { id: "name", accessorKey: "name", header: "Company", size: 280, cell: ({ row: { original: r } }) => (
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5"><span className="truncate font-medium">{r.name}</span>{r.starred && <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />}{r.doNotCall && <Badge tone="danger">DNC</Badge>}</div>
+        <div className="flex items-center gap-1.5"><a href={`/leads/${r.id}`} onClick={(e) => e.stopPropagation()} className="truncate font-medium hover:text-primary hover:underline">{r.name}</a>{r.starred && <Star className="h-3 w-3 shrink-0 fill-warning text-warning" />}{r.doNotCall && <Badge tone="danger">DNC</Badge>}</div>
         <p className="truncate text-xs text-muted-fg">{[r.category, r.area ?? r.city].filter(Boolean).join(" · ")}</p>
       </div>) },
     { id: "status", accessorKey: "status", header: "Status", size: 120, cell: ({ getValue }) => <Badge tone={STATUS_TONE[getValue<string>()]}>{statusLabel(getValue<string>())}</Badge> },
@@ -128,7 +128,7 @@ export function LeadsTable({ data, lists, initialStatus }: { data: LeadRow[]; li
               {virt.getVirtualItems().map((vi) => {
                 const row = rows[vi.index];
                 return (
-                  <div key={row.id} onClick={() => setDrawer(row.original)} onDoubleClick={() => router.push(`/leads/${row.id}`)}
+                  <div key={row.id} onClick={() => setDrawer(row.original)}
                     className={cn("absolute left-0 right-0 flex cursor-pointer items-center border-b border-border text-sm hover:bg-muted/50", row.getIsSelected() && "bg-primary/5", drawer?.id === row.id && "bg-muted")}
                     style={{ height: vi.size, transform: `translateY(${vi.start}px)` }}>
                     {row.getVisibleCells().map((c) => <div key={c.id} style={{ width: c.column.getSize(), flex: c.column.id === "name" ? "1 0 auto" : undefined }} className="min-w-0 px-3">{flexRender(c.column.columnDef.cell, c.getContext())}</div>)}
@@ -138,7 +138,7 @@ export function LeadsTable({ data, lists, initialStatus }: { data: LeadRow[]; li
             </div>
           </div>
         </div>
-        <div className="border-t border-border px-3 py-2 text-xs text-muted-fg">{rows.length} shown · click for quick view · double-click to open</div>
+        <div className="border-t border-border px-3 py-2 text-xs text-muted-fg">{rows.length} shown · click a row for quick view · click the name to open</div>
       </Card>
 
       {drawer && (

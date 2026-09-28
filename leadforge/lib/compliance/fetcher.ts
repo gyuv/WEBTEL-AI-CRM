@@ -51,6 +51,13 @@ export async function politeFetch(url: string, opts: { contact?: string; minDela
     if (!/html|xml|text/i.test(ct)) return { ok: false, url: r.url, status: r.status, ms, reason: `skipped content-type ${ct}` };
     const html = (await r.text()).slice(0, 1_500_000);
     if (/captcha|cf-challenge|are you a robot/i.test(html.slice(0, 5000)) && html.length < 20000) return { ok: false, url: r.url, status: r.status, ms, reason: "bot challenge — skipped (no bypass)" };
+    const render = (globalThis as { __lfRender?: (u: string, ua: string) => Promise<string | null> }).__lfRender;
+    const visibleText = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (render && visibleText.length < 400) {
+      // JS-rendered page: the optional local Playwright worker renders it (same robots/UA rules already applied).
+      const rendered = await render(r.url, ua).catch(() => null);
+      if (rendered) return { ok: true, url: r.url, status: r.status, html: rendered, ms: Date.now() - t0, headers: Object.fromEntries(r.headers.entries()) };
+    }
     return { ok: true, url: r.url, status: r.status, html, ms, headers: Object.fromEntries(r.headers.entries()) };
   } catch (e) {
     return { ok: false, url, status: 0, reason: (e as Error).message.slice(0, 100) };

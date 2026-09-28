@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+body{font:13px system-ui,sans-serif;width:320px;margin:0;padding:14px;color:#18181b}
+h1{font-size:15px;margin:0 0 8px}button{width:100%;padding:10px;border:0;border-radius:8px;background:#5b5bf0;color:#fff;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5}.muted{color:#71717a;font-size:12px}.card{border:1px solid #e4e4e7;border-radius:8px;padding:8px;margin:8px 0;max-height:220px;overflow:auto}
+.p{padding:4px 0;border-bottom:1px solid #f4f4f5}.ok{color:#16a34a}.err{color:#dc2626}a{color:#5b5bf0}
+</style></head><body>
+<h1>LeadForge Capture</h1>
+<p class="muted">Reads only what's visible on this tab, only now. No scrolling, no automation.</p>
+<div id="preview" class="card muted">Click "Read this page" to preview.</div>
+<button id="read">Read this page</button>
+<div style="height:8px"></div>
+<button id="send" disabled>Send to LeadForge</button>
+<p id="status" class="muted"></p>
+<p class="muted"><a href="options.html" target="_blank">Settings</a></p>
+<script src="popup.js"></script>
+</body></html>

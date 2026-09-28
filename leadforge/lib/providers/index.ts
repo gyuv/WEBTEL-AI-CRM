@@ -41,6 +41,7 @@ export async function geocode(place: string, userId = "owner"): Promise<{ lat: n
     headers: { "user-agent": userAgent(s.userAgentContact) }, signal: AbortSignal.timeout(10000),
   }));
   await trackUsage("nominatim", 1, 0, userId);
+  if (!r.ok) throw new Error(`Nominatim HTTP ${r.status}`);
   const j = (await r.json()) as { lat: string; lon: string; display_name: string }[];
   if (!j[0]) return null;
   const out = { lat: Number(j[0].lat), lng: Number(j[0].lon), display: j[0].display_name };
@@ -70,7 +71,7 @@ export async function discoverOsm({ intent, limit, radiusKm, userId }: Discovery
         headers: { "user-agent": userAgent(s.userAgentContact), "content-type": "application/x-www-form-urlencoded" },
         signal: AbortSignal.timeout(30000),
       });
-      if (!res.ok) throw new Error(`Overpass ${res.status}`);
+      if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`Overpass unavailable (HTTP ${res.status})`);
       return res;
     });
     await trackUsage("osm", 1, 0, userId);

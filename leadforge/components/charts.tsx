@@ -20,9 +20,9 @@ export function TrendChart({ data, keys }: { data: Record<string, string | numbe
 export function Bars({ data, x, y, color = "hsl(var(--primary))", height = 220, layout = "horizontal" }: { data: Record<string, string | number>[]; x: string; y: string; color?: string; height?: number; layout?: "horizontal" | "vertical" }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} layout={layout} margin={{ left: layout === "vertical" ? 40 : -20, right: 8, top: 8 }}>
+      <BarChart data={data} layout={layout} margin={{ left: layout === "vertical" ? 8 : -20, right: 8, top: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={layout === "vertical"} horizontal={layout === "horizontal"} />
-        {layout === "horizontal" ? <><XAxis dataKey={x} {...axis} /><YAxis allowDecimals={false} {...axis} /></> : <><XAxis type="number" allowDecimals={false} {...axis} /><YAxis type="category" dataKey={x} width={110} {...axis} /></>}
+        {layout === "horizontal" ? <><XAxis dataKey={x} {...axis} /><YAxis allowDecimals={false} {...axis} /></> : <><XAxis type="number" allowDecimals={false} {...axis} /><YAxis type="category" dataKey={x} width={150} {...axis} /></>}
         <Tooltip {...tip} cursor={{ fill: "hsl(var(--muted))" }} />
         <Bar dataKey={y} fill={color} radius={4} maxBarSize={36} />
       </BarChart>

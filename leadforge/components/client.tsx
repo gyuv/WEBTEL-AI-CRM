@@ -175,8 +175,8 @@ export function MobileNav() {
 export function SearchTrigger() {
   return (
     <button onClick={() => window.dispatchEvent(new Event("lf:cmdk"))} className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-fg hover:bg-muted">
-      <Search className="h-4 w-4" /> <span className="flex-1 text-left">Search or jump…</span>
-      <span className="kbd">⌘</span><span className="kbd">K</span>
+      <Search className="h-4 w-4 shrink-0" /> <span className="flex-1 truncate text-left">Search<span className="hidden sm:inline"> or jump…</span></span>
+      <span className="kbd hidden sm:inline-flex">⌘</span><span className="kbd hidden sm:inline-flex">K</span>
     </button>
   );
 }
