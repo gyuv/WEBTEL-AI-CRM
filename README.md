@@ -8,7 +8,8 @@ Lead Source is a first-class entity. That makes it possible to report **Source â
 
 ## Features
 
-- **Auth:** email/password (Auth.js credentials, bcrypt hashes, JWT session in an HttpOnly cookie). Roles are `ADMIN` and `USER`.
+- **No login by default (personal mode):** the app opens straight to the dashboard and you act as a built-in `Owner` admin account. **Anyone who can reach the URL has full access**, so only run it on your own machine or a private network. Set `REQUIRE_LOGIN=true` to turn login back on.
+- **Auth (when `REQUIRE_LOGIN=true`):** email/password (Auth.js credentials, bcrypt hashes, JWT session in an HttpOnly cookie). Roles are `ADMIN` and `USER`.
 - **Leads:** create, edit, delete, assign, set status, and convert to a customer. You can search, filter by source, campaign, status, priority, city, salesperson, product and date, sort, and page through results. The lead page shows activities, meetings/demos, follow-ups, opportunities, quotations, sales, stage history and AI insights.
 - **Lead source capture:** the source dropdown is loaded from the `lead_sources` table. The form then shows the field that fits the source: Referral Name, Event Name, Campaign Name, Partner Name, Employee Name or Source Details.
 - **Lead source management (admin):** add, edit and disable sources, and see usage counts. A source that is already used cannot be deleted; you disable it instead.
@@ -95,6 +96,7 @@ createdb webtel_crm_test     # used by the test suite
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `TEST_DATABASE_URL` | Separate database for `npm test` (its tables are truncated) |
+| `REQUIRE_LOGIN` | `false` (default) = no login page, single owner account. `true` = email/password login with roles |
 | `AUTH_SECRET` | Random secret, for example `openssl rand -base64 32` |
 | `AUTH_TRUST_HOST` | `true` when running behind a proxy or on your own host |
 | `OPENAI_API_KEY` | Optional. Enables full AI output. Only read on the server |
@@ -110,10 +112,12 @@ npm run db:seed              # default lead sources, products, demo users and DE
 npm run dev                  # http://localhost:3000
 ```
 
-Demo logins created by the seed (**change these passwords or disable these accounts in production**):
+Demo logins created by the seed. These are only used when `REQUIRE_LOGIN=true` (**change these passwords or disable these accounts in production**):
 
 - Admin: `admin@webtel.demo` / `Admin@12345`
 - User: `rm@webtel.demo` / `Sales@12345`
+
+If login is on and you see "Invalid email or password", the database usually has no users: run `npm run db:seed`, or create or reset an admin with `npm run create-admin -- you@example.com YourPassword123 "Your Name"`.
 
 The seed adds 10 leads from 10 different sources, 5 customers, 10 activities, 5 opportunities, 5 quotations, 10 follow-ups and 5 sales. Every one of them is marked **DEMO DATA** and none are real customers. Demo product prices are placeholders marked "(DEMO)", so update them under Settings â†’ Products.
 

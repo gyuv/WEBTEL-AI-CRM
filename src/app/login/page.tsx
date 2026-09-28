@@ -18,7 +18,14 @@ export default function LoginPage() {
           <Field label="Password">
             <Input name="password" type="password" required autoComplete="current-password" />
           </Field>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error === "NO_USERS" ? (
+            <p className="text-sm text-destructive">
+              No user accounts exist in this database yet. Run <code>npm run db:seed</code> for the demo accounts, or{" "}
+              <a href="/setup" className="underline">create the first admin</a>.
+            </p>
+          ) : (
+            error && <p className="text-sm text-destructive">{error}</p>
+          )}
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>

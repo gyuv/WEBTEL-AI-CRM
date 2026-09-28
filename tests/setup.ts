@@ -3,7 +3,8 @@ import { vi } from "vitest";
 
 config();
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
-delete process.env.OPENAI_API_KEY; // tests never call the real AI API
+delete process.env.OPENAI_API_KEY;
+process.env.REQUIRE_LOGIN = "true"; // tests exercise the authenticated mode // tests never call the real AI API
 
 // Session is supplied per test via globalThis.__testSession.
 vi.mock("@/auth", () => ({

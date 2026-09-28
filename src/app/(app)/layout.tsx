@@ -2,6 +2,7 @@ import { requirePageActor } from "@/server/session";
 import { GlobalSearch, Notifications, Sidebar } from "@/components/nav";
 import { logoutAction } from "@/app/actions/auth";
 import { Button } from "@/components/ui";
+import { loginRequired } from "@/lib/login-mode";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const actor = await requirePageActor();
@@ -19,9 +20,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {actor.name} <span className="text-xs">({actor.role})</span>
             </span>
-            <form action={logoutAction}>
-              <Button variant="outline" size="sm">Logout</Button>
-            </form>
+            {loginRequired() && (
+              <form action={logoutAction}>
+                <Button variant="outline" size="sm">Logout</Button>
+              </form>
+            )}
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6">{children}</main>
