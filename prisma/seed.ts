@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { PrismaClient, type LeadStatus, type Priority } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { nextHighestRank } from "../src/lib/funnel";

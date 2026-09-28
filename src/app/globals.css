@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --border: 214 32% 91%;
+  --primary: 221 83% 45%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 40%;
+  --destructive: 0 72% 51%;
+}
+
+body { @apply bg-background text-foreground antialiased; }
+* { @apply border-border; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
