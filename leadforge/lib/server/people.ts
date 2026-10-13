@@ -12,6 +12,8 @@ import { addSource } from "./leads";
 export interface PersonInput {
   fullName: string; title?: string | null; headline?: string | null; profileUrl?: string | null; location?: string | null;
   about?: string | null; activity?: string | null; source: string; sourceUrl?: string | null; notes?: string | null;
+  /** A verified address from an import (e.g. OpenOutreach); wins over the pattern guess. */
+  email?: string | null;
 }
 
 export async function upsertPerson(userId: string, leadId: string, p: PersonInput) {
@@ -21,14 +23,14 @@ export async function upsertPerson(userId: string, leadId: string, p: PersonInpu
   const title = p.title ?? p.headline?.split(/ at | @ /i)[0] ?? null;
   const c = classifyTitle(title ?? p.headline);
   const [lead] = await db.select({ domain: schema.leads.domain }).from(schema.leads).where(eq(schema.leads.id, leadId));
-  const guessed = lead?.domain ? guessEmails(p.fullName, lead.domain)[0]?.email : null;
+  const guessed = p.email?.trim() || (lead?.domain ? guessEmails(p.fullName, lead.domain)[0]?.email : null);
   const existing = await db.select().from(schema.leadPeople).where(and(eq(schema.leadPeople.leadId, leadId), eq(schema.leadPeople.normalizedName, norm)));
   if (existing[0]) {
     const e = existing[0];
     await db.update(schema.leadPeople).set({
       title: e.title ?? title, headline: p.headline ?? e.headline, profileUrl: e.profileUrl ?? p.profileUrl, location: e.location ?? p.location,
       about: p.about ?? e.about, activity: p.activity ?? e.activity, roleGroup: c.roleGroup, seniority: c.seniority,
-      dmScore: Math.max(e.dmScore, c.dmScore), updatedAt: new Date(),
+      dmScore: Math.max(e.dmScore, c.dmScore), guessedEmail: p.email?.trim() || e.guessedEmail, notes: e.notes ?? p.notes ?? null, updatedAt: new Date(),
     }).where(eq(schema.leadPeople.id, e.id));
     return e.id;
   }
