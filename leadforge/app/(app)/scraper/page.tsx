@@ -3,7 +3,7 @@ import { ctx, getSettings, getApiKey } from "@/lib/server/core";
 import { schema } from "@/lib/db/client";
 import { PageHeader, Badge, Card, CardHeader } from "@/components/ui";
 import { Tabs } from "@/components/client";
-import { QuickSearch, SweepForm, SiteForm, PasteForm, MapsCapture } from "./scraper-client";
+import { QuickSearch, SweepForm, SiteForm, PasteForm, OpenOutreachImport, MapsCapture } from "./scraper-client";
 import { CATEGORY_PRESETS } from "@/lib/leadgen/intent-presets";
 import { KNOWN_PLACES } from "@/lib/leadgen/intent";
 import { timeAgo } from "@/lib/utils";
@@ -24,6 +24,7 @@ export default async function ScraperPage() {
         { id: "site", label: "Website / directory", content: <SiteForm city={s.defaultCity} /> },
         { id: "maps", label: "Google Maps capture", content: <MapsCapture hasToken={hasToken} /> },
         { id: "paste", label: "Bulk paste", content: <PasteForm city={s.defaultCity} /> },
+        { id: "openoutreach", label: "OpenOutreach", content: <OpenOutreachImport /> },
       ]} />
       <Card className="mt-5">
         <CardHeader title="Recent scrape runs" />

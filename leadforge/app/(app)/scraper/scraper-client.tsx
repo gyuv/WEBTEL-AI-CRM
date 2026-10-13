@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { toast } from "sonner";
-import { Loader2, Radar, Globe, ClipboardPaste, MapPin, CheckCircle2 } from "lucide-react";
+import { Loader2, Radar, Globe, ClipboardPaste, MapPin, CheckCircle2, Upload } from "lucide-react";
 import { Badge, Button, Card, CardBody, CardHeader, Field, Input, Textarea, buttonClass } from "@/components/ui";
 import { JobProgress } from "@/components/client";
 import { sweepAction, scrapeSiteAction, bulkPasteAction } from "@/app/actions";
@@ -103,6 +103,31 @@ export function PasteForm({ city: defCity }: { city: string }) {
         <Options o={o} set={setO} />
         <Button size="lg" disabled={pending || !text.trim()} onClick={() => start(async () => { const r = await bulkPasteAction({ text, category, city, addToCallQueue: o.addToCallQueue, autoEnrich: o.autoEnrich }); if ("error" in r && r.error) toast.error(r.error); else if ("searchId" in r) { setRes(r as { created: number; merged: number; searchId: string }); toast.success(`${r.created} new, ${r.merged} merged`); } })}>{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardPaste className="h-4 w-4" />} Extract leads</Button>
         {res && <p className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-success" />{res.created} new · {res.merged} duplicates merged · <a className="text-primary underline" href={`/leads?search=${res.searchId}`}>view</a> · <a className="text-primary underline" href="/calls">start calling</a></p>}
+      </CardBody>
+    </Card>
+  );
+}
+
+export function OpenOutreachImport() {
+  const [busy, setBusy] = React.useState(false);
+  const [res, setRes] = React.useState<{ saved: number; skipped: number } | null>(null);
+  const up = async (f: File) => {
+    setBusy(true);
+    const fd = new FormData(); fd.append("file", f);
+    const r = await fetch("/api/import/people", { method: "POST", body: fd });
+    const j = await r.json(); setBusy(false);
+    if (!r.ok) return toast.error(j.error);
+    setRes(j); toast.success(`Imported ${j.saved} people (${j.skipped} skipped)`);
+  };
+  return (
+    <Card><CardHeader title="Import from OpenOutreach" description="Upload the CSV from `openoutreach find`. Each row adds the company as a lead and the person with title, LinkedIn, verified email and why they fit." />
+      <CardBody className="space-y-3 text-sm">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border p-6 text-muted-fg hover:bg-muted">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload OpenOutreach CSV
+          <input type="file" accept=".csv,text/csv" className="hidden" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) up(f); }} />
+        </label>
+        {res && <p className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" />{res.saved} imported · {res.skipped} skipped · <a className="text-primary underline" href="/people">view people</a></p>}
+        <p className="rounded-md bg-muted p-3 text-xs text-muted-fg">Get the file with <code>uv tool install openoutreach</code>, <code>openoutreach init</code>, then <code>openoutreach find 25 &gt; leads.csv</code> (free) or <code>openoutreach find 10 emails &gt; leads.csv</code> (1 BetterContact credit per verified email). Re-importing is safe: people are matched by company and name.</p>
       </CardBody>
     </Card>
   );
