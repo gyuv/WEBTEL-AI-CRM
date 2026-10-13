@@ -3,7 +3,7 @@ import Papa from "papaparse";
 import { matchCompany, upsertPerson } from "./people";
 import { upsertRawLead } from "./leads";
 
-export interface CapturedPerson { name: string; headline?: string | null; company?: string | null; location?: string | null; profileUrl?: string | null; about?: string | null; activity?: string | null; email?: string | null; title?: string | null }
+export interface CapturedPerson { name: string; headline?: string | null; company?: string | null; location?: string | null; profileUrl?: string | null; about?: string | null; activity?: string | null; email?: string | null; title?: string | null; website?: string | null; notes?: string | null }
 
 /** Save a person captured by the user (extension / paste / CSV). Creates the company as a lead if it doesn't exist. */
 export async function savePerson(userId: string, p: CapturedPerson, source: string, opts: { leadId?: string | null; createCompany?: boolean } = {}) {
@@ -14,25 +14,34 @@ export async function savePerson(userId: string, p: CapturedPerson, source: stri
     leadId = m?.lead.id ?? null;
   }
   if (!leadId && company && opts.createCompany !== false) {
-    leadId = (await upsertRawLead(userId, { name: company, city: p.location?.split(",")[0] ?? null, source })).id;
+    leadId = (await upsertRawLead(userId, { name: company, city: p.location?.split(",")[0] ?? null, website: p.website ?? null, source })).id;
   }
   if (!leadId) return { ok: false as const, reason: "No company to attach to" };
-  const id = await upsertPerson(userId, leadId, { fullName: p.name, title: p.title ?? null, headline: p.headline ?? null, location: p.location ?? null, profileUrl: p.profileUrl ?? null, about: p.about ?? null, activity: p.activity ?? null, source });
+  const id = await upsertPerson(userId, leadId, { fullName: p.name, title: p.title ?? null, headline: p.headline ?? null, location: p.location ?? null, profileUrl: p.profileUrl ?? null, about: p.about ?? null, activity: p.activity ?? null, email: p.email ?? null, notes: p.notes ?? null, source });
   return { ok: true as const, leadId, personId: id };
 }
 
-/** LinkedIn "Connections.csv" export, Sales Navigator / Recruiter exports, or any CSV with name + company. */
+/**
+ * LinkedIn "Connections.csv" export, Sales Navigator / Recruiter exports, OpenOutreach `find` output
+ * (email, first_name, last_name, company, title, website, linkedin_url, reason, …), or any CSV with name + company.
+ */
 export async function importPeopleCsv(userId: string, text: string) {
   // LinkedIn exports start with a "Notes:" preamble before the header row.
-  const start = text.search(/^(First Name|first name|Name|name|Full Name)/m);
+  const start = text.search(/^(First Name|first name|first_name|Name|name|Full Name|email,first_name)/m);
   const csv = Papa.parse<Record<string, string>>(start > 0 ? text.slice(start) : text, { header: true, skipEmptyLines: true, transformHeader: (h) => h.trim().toLowerCase() });
   const g = (r: Record<string, string>, ...k: string[]) => k.map((x) => r[x]).find((v) => v && v.trim())?.trim() ?? null;
   let saved = 0, skipped = 0;
   for (const r of csv.data.slice(0, 5000)) {
-    const name = g(r, "full name", "name") ?? [g(r, "first name"), g(r, "last name")].filter(Boolean).join(" ");
+    const name = g(r, "full name", "name") ?? [g(r, "first name", "first_name"), g(r, "last name", "last_name")].filter(Boolean).join(" ");
+    const openOutreach = "lead_id" in r && "reason" in r;
     const company = g(r, "company", "company name", "current company", "organization");
     if (!name || !company) { skipped++; continue; }
-    const res = await savePerson(userId, { name, company, title: g(r, "position", "title", "job title", "current title"), profileUrl: g(r, "url", "profile url", "linkedin url", "person linkedin url"), location: g(r, "location", "geography") }, "csv-import");
+    const res = await savePerson(userId, {
+      name, company, title: g(r, "position", "title", "job title", "current title"),
+      profileUrl: g(r, "url", "profile url", "linkedin url", "linkedin_url", "person linkedin url"), location: g(r, "location", "geography"),
+      email: g(r, "email", "email address"), website: g(r, "website", "company website"),
+      notes: g(r, "reason") ? `Why this lead (OpenOutreach): ${g(r, "reason")}` : null,
+    }, openOutreach ? "openoutreach" : "csv-import");
     if (res.ok) saved++; else skipped++;
   }
   return { saved, skipped, total: csv.data.length };
